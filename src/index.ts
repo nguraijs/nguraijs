@@ -10,6 +10,13 @@ interface TokenizerConfig {
   commentPrefixes?: string[]
   commentSuffixes?: string[]
   custom?: Record<string, (string | RegExp)[]>
+  plugins?: TokenizerPlugin[]
+  noUnknownToken?: boolean
+}
+
+interface TokenizerPlugin {
+  name: string
+  process: (input: string, position: number) => Token | null
 }
 
 interface Token {
@@ -33,8 +40,14 @@ export class Tokenizer {
       newlineRegex: config.newlineRegex || /^\n/,
       commentPrefixes: config.commentPrefixes || ['//', '/*'],
       commentSuffixes: config.commentSuffixes || ['', '*/'],
-      custom: config.custom || {}
+      custom: config.custom || {},
+      plugins: config.plugins || [],
+      noUnknownToken: config.noUnknownToken || false
     }
+  }
+
+  registerPlugin(plugin: TokenizerPlugin): void {
+    this.config.plugins.push(plugin)
   }
 
   tokenize(input: string): Token[][] {
@@ -48,6 +61,18 @@ export class Tokenizer {
       while (localPosition < line.length) {
         const char = line[localPosition]
         let token: Token | null = null
+
+        // Process plugins
+        for (const plugin of this.config.plugins) {
+          token = plugin.process(line, localPosition)
+          if (token) {
+            currentLine.push(token)
+            localPosition += token.value.length
+            globalPosition += token.value.length
+            break
+          }
+        }
+        if (token) continue
 
         // Check for comments
         token = this.parseComment(line, localPosition)
@@ -119,14 +144,15 @@ export class Tokenizer {
           continue
         }
 
-        // Unknown character handling
-        currentLine.push({ type: 'unknown', value: char, position: localPosition })
+        if (!this.config.noUnknownToken) {
+          currentLine.push({ type: 'unknown', value: char, position: localPosition })
+        }
         localPosition++
         globalPosition++
       }
 
       if (currentLine.length) lines.push(currentLine)
-      globalPosition++ // Move to next line
+      globalPosition++
     }
 
     return lines
