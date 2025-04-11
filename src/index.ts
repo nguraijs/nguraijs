@@ -12,6 +12,7 @@ interface TokenizerConfig {
   custom?: Record<string, (string | RegExp)[]>
   plugins?: TokenizerPlugin[]
   noUnknownToken?: boolean
+  prioritizeCustom?: boolean
 }
 
 interface TokenizerPlugin {
@@ -42,7 +43,8 @@ export class Tokenizer {
       commentSuffixes: config.commentSuffixes || ['', '*/'],
       custom: config.custom || {},
       plugins: config.plugins || [],
-      noUnknownToken: config.noUnknownToken || false
+      noUnknownToken: config.noUnknownToken || false,
+      prioritizeCustom: config.prioritizeCustom || false,
     }
   }
 
