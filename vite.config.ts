@@ -7,7 +7,7 @@ export default defineConfig({
       name: 'TokenizerCore',
       entry: './src/index.ts',
       formats: ['es', 'iife', 'cjs', 'umd'],
-      fileName: (format) => `index.${format}.js`
+      fileName: (format) => `index.${format}${format !== 'cjs' ? '.js' : ''}`
     },
     sourcemap: true,
     rollupOptions: {
