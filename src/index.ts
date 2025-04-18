@@ -12,7 +12,9 @@ interface TokenizerConfig {
   custom?: Record<string, (string | RegExp)[]>
   plugins?: TokenizerPlugin[]
   noUnknownToken?: boolean
+  noSpace?: boolean
   prioritizeCustom?: boolean
+  customOnly?: boolean
 }
 
 interface TokenizerPlugin {
@@ -26,7 +28,7 @@ interface Token {
   position: number
 }
 
-export class Tokenizer {
+export class Ngurai {
   private config: Required<TokenizerConfig>
 
   constructor(config: TokenizerConfig = {}) {
@@ -44,7 +46,9 @@ export class Tokenizer {
       custom: config.custom || {},
       plugins: config.plugins || [],
       noUnknownToken: config.noUnknownToken || false,
+      noSpace: config.noSpace || false,
       prioritizeCustom: config.prioritizeCustom || false,
+      customOnly: config.customOnly || false
     }
   }
 
@@ -76,13 +80,15 @@ export class Tokenizer {
         }
         if (token) continue
 
-        // Check for comments
-        token = this.parseComment(line, localPosition)
-        if (token) {
-          currentLine.push(token)
-          localPosition += token.value.length
-          globalPosition += token.value.length
-          continue
+        if (!this.config.customOnly) {
+          // Check for comments
+          token = this.parseComment(line, localPosition)
+          if (token) {
+            currentLine.push(token)
+            localPosition += token.value.length
+            globalPosition += token.value.length
+            continue
+          }
         }
 
         // Check for custom identifiers
@@ -95,55 +101,59 @@ export class Tokenizer {
         }
 
         // Handle spaces - split into individual tokens
-        const spaceMatch = line.slice(localPosition).match(this.config.whitespaceRegex)
-        if (spaceMatch) {
-          const spaces = spaceMatch[0]
-          for (let i = 0; i < spaces.length; i++) {
-            currentLine.push({
-              type: 'space',
-              value: spaces[i],
-              position: localPosition + i
-            })
+        if (!this.config.noSpace) {
+          const spaceMatch = line.slice(localPosition).match(this.config.whitespaceRegex)
+          if (spaceMatch) {
+            const spaces = spaceMatch[0]
+            for (let i = 0; i < spaces.length; i++) {
+              currentLine.push({
+                type: 'space',
+                value: spaces[i],
+                position: localPosition + i
+              })
+            }
+            localPosition += spaces.length
+            globalPosition += spaces.length
+            continue
           }
-          localPosition += spaces.length
-          globalPosition += spaces.length
-          continue
         }
 
-        // Check for punctuation
-        token = this.parseFromList(line, localPosition, this.config.punctuation, 'punctuation')
-        if (token) {
-          currentLine.push(token)
-          localPosition += token.value.length
-          globalPosition += token.value.length
-          continue
-        }
+        if (!this.config.customOnly) {
+          // Check for punctuation
+          token = this.parseFromList(line, localPosition, this.config.punctuation, 'punctuation')
+          if (token) {
+            currentLine.push(token)
+            localPosition += token.value.length
+            globalPosition += token.value.length
+            continue
+          }
 
-        // Check for identifiers, keywords, and variables
-        token = this.parseIdentifierOrKeyword(line, localPosition)
-        if (token) {
-          currentLine.push(token)
-          localPosition += token.value.length
-          globalPosition += token.value.length
-          continue
-        }
+          // Check for identifiers, keywords, and variables
+          token = this.parseIdentifierOrKeyword(line, localPosition)
+          if (token) {
+            currentLine.push(token)
+            localPosition += token.value.length
+            globalPosition += token.value.length
+            continue
+          }
 
-        // Check for numbers
-        token = this.parseNumber(line, localPosition)
-        if (token) {
-          currentLine.push(token)
-          localPosition += token.value.length
-          globalPosition += token.value.length
-          continue
-        }
+          // Check for numbers
+          token = this.parseNumber(line, localPosition)
+          if (token) {
+            currentLine.push(token)
+            localPosition += token.value.length
+            globalPosition += token.value.length
+            continue
+          }
 
-        // Check for strings
-        token = this.parseString(line, localPosition)
-        if (token) {
-          currentLine.push(token)
-          localPosition += token.value.length
-          globalPosition += token.value.length
-          continue
+          // Check for strings
+          token = this.parseString(line, localPosition)
+          if (token) {
+            currentLine.push(token)
+            localPosition += token.value.length
+            globalPosition += token.value.length
+            continue
+          }
         }
 
         if (!this.config.noUnknownToken) {
