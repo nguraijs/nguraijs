@@ -1,6 +1,6 @@
 {
   "name": "nguraijs",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Lightweight and customizable tokenizer.",
   "author": "NOuSantx <nousantx@gmail.com>",
   "license": "MIT",
@@ -23,7 +23,6 @@
     "README.md",
     "LICENSE"
   ],
-  "type": "module",
   "types": "./dist/index.d.ts",
   "main": "./dist/index.cjs",
   "module": "./dist/index.es.js",
