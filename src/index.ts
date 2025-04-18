@@ -13,7 +13,6 @@ interface TokenizerConfig {
   plugins?: TokenizerPlugin[]
   noUnknownToken?: boolean
   noSpace?: boolean
-  prioritizeCustom?: boolean
   customOnly?: boolean
 }
 
@@ -47,7 +46,6 @@ export class Ngurai {
       plugins: config.plugins || [],
       noUnknownToken: config.noUnknownToken || false,
       noSpace: config.noSpace || false,
-      prioritizeCustom: config.prioritizeCustom || false,
       customOnly: config.customOnly || false
     }
   }
@@ -283,4 +281,4 @@ export class Ngurai {
   }
 }
 
-export default Tokenizer
+export default Ngurai
