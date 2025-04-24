@@ -1,6 +1,6 @@
 # Ngurai.JS
 
-Ngurai _(ngooh-rai)_ (means Analyzing or Describing in Javanese) is a small, highly customized library for **line-by-line** parsing and tokenize strings.
+Ngurai _(ngooh-rai)_ (means **Breaking Down** or **Describing** in Javanese) is a small, highly customized library for **line-by-line** parsing and tokenize strings.
 
 ## Installation
 
@@ -31,7 +31,7 @@ console.log(
  */
  
 const tx = /* comments */ 'hello, world!'`
-  ).tokens
+  )
 )
 ```
 
@@ -67,7 +67,28 @@ Output :
 export class Ngurai {
   /* ... */
 }
-export default Ngurai
+export default Ngurai // default export only available on esm
+```
+
+### `cjs`
+
+```javascript
+const { Ngurai } = require('nguraijs')
+```
+
+### `esm`
+
+```javascript
+import { Ngurai } from 'nguraijs'
+```
+
+### `iife`
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/nguraijs@0.4/dist/index.iife.js"></script>
+<script>
+  const { Ngurai } = __nguraijs__
+</script>
 ```
 
 ### Types
@@ -135,9 +156,7 @@ export class Ngurai {
 Register new plugin into NguraiJS.
 
 ```typescript
-public registerPlugin(plugin: TokenizerPlugin) {
-  //...
-}
+public registerPlugin(plugin: TokenizerPlugin) {}
 ```
 
 #### `process`
