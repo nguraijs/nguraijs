@@ -166,7 +166,7 @@ export class Ngurai {
     return null
   }
 
-  public registerPlugin(plugin: TokenizerPlugin): void {
+  public registerPlugin(plugin: TokenizerPlugin) {
     this.config.plugins.push(plugin)
     return this
   }
