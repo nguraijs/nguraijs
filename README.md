@@ -1,6 +1,6 @@
 # Ngurai.JS
 
-Ngurai _(ngooh-rai)_ (means **Breaking Down** or **Describing** in Javanese) is a small, highly customized library for **line-by-line** parsing and tokenize strings.
+Ngurai _(ngooh-rai)_ (means **Breaking Down** or **Describing** in [Javanese](https://en.wikipedia.org/wiki/Javanese_language)) is a small, extensible, and simple string tokenizer.
 
 ## Installation
 
@@ -16,7 +16,7 @@ const { Ngurai } = require('nguraijs')
 const urx = new Ngurai({
   commentPrefixes: [' *', '/*'],
   keywords: ['const', 'return', 'function'],
-  punctuation: ['='],
+  punctuations: ['='],
   custom: {
     // custom keywords
     variable: ['tx'],
@@ -94,10 +94,9 @@ import { Ngurai } from 'nguraijs'
 ### Types
 
 ```typescript
-interface TokenizerConfig {
+interface Config {
   keywords?: string[]
-  punctuation?: string[]
-  operators?: string[]
+  punctuations?: string[]
   stringDelimiters?: string[]
   numberRegex?: RegExp
   identifierRegex?: RegExp
@@ -105,13 +104,13 @@ interface TokenizerConfig {
   commentPrefixes?: string[]
   commentSuffixes?: string[]
   custom?: Record<string, (string | RegExp)[]>
-  plugins?: TokenizerPlugin[]
+  plugins?: Plugin[]
   noUnknownToken?: boolean
   noSpace?: boolean
   customOnly?: boolean
 }
 
-interface TokenizerPlugin {
+interface Plugin {
   name: string
   process: (input: string, position: number) => Token | null
 }
@@ -127,12 +126,11 @@ interface Token {
 
 ```typescript
 export class Ngurai {
-  private config: Required<TokenizerConfig>
-  constructor(config: TokenizerConfig = {}) {
+  private config: Required<Config>
+  constructor(config: Config = {}) {
     this.config = {
       keywords: config.keywords || [],
-      punctuation: config.punctuation || [],
-      operators: config.operators || [],
+      punctuations: config.punctuations || [],
       stringDelimiters: config.stringDelimiters || ['"', "'", '`'],
       numberRegex: config.numberRegex || /^\d+(\.\d+)?([eE][+-]?\d+)?/,
       identifierRegex: config.identifierRegex || /^[a-zA-Z_$][a-zA-Z0-9_$]*/,
@@ -147,24 +145,6 @@ export class Ngurai {
     }
   }
 }
-```
-
-### Public Methods
-
-#### `registerPlugin`
-
-Register new plugin into NguraiJS.
-
-```typescript
-public registerPlugin(plugin: TokenizerPlugin) {}
-```
-
-#### `process`
-
-Method to process or tokenize the input string and return the tokenized data.
-
-```typescript
-public process(input: string): Token[][] {}
 ```
 
 ## LICENSE
