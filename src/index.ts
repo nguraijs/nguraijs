@@ -1,42 +1,18 @@
-interface TokenizerConfig {
-  keywords?: string[]
-  punctuation?: string[]
-  operators?: string[]
-  stringDelimiters?: string[]
-  numberRegex?: RegExp
-  identifierRegex?: RegExp
-  whitespaceRegex?: RegExp
-  commentPrefixes?: string[]
-  commentSuffixes?: string[]
-  custom?: Record<string, (string | RegExp)[]>
-  plugins?: TokenizerPlugin[]
-  noUnknownToken?: boolean
-  noSpace?: boolean
-  customOnly?: boolean
-}
-
-interface TokenizerPlugin {
-  name: string
-  process: (input: string, position: number) => Token | null
-}
-
-interface Token {
-  type: string
-  value: string
-  position: number
-}
+import { Config, Token, Plugin, PluginContext, PluginError } from './types'
+import { identifierPatterns } from './lib/identifierPatterns'
 
 export class Ngurai {
-  private config: Required<TokenizerConfig>
+  private config: Required<Config>
+  private pluginErrors: PluginError[] = []
+  private pluginStats: Map<string, { calls: number; errors: number; totalTime: number }> = new Map()
 
-  constructor(config: TokenizerConfig = {}) {
+  constructor(config: Config = {}) {
     this.config = {
       keywords: config.keywords || [],
-      punctuation: config.punctuation || [],
-      operators: config.operators || [],
+      punctuations: config.punctuations || [],
       stringDelimiters: config.stringDelimiters || ['"', "'", '`'],
       numberRegex: config.numberRegex || /^\d+(\.\d+)?([eE][+-]?\d+)?/,
-      identifierRegex: config.identifierRegex || /^[a-zA-Z_$][a-zA-Z0-9_$]*/,
+      identifierRegex: config.identifierRegex || identifierPatterns.standard,
       whitespaceRegex: config.whitespaceRegex || /^[ \t]+/,
       commentPrefixes: config.commentPrefixes || ['//', '/*'],
       commentSuffixes: config.commentSuffixes || ['', '*/'],
@@ -44,9 +20,187 @@ export class Ngurai {
       plugins: config.plugins || [],
       noUnknownToken: config.noUnknownToken || false,
       noSpace: config.noSpace || false,
-      customOnly: config.customOnly || false
+      customOnly: config.customOnly || false,
+      pluginErrorHandling: config.pluginErrorHandling || 'warn',
+      enablePluginTracing: config.enablePluginTracing || false
+    }
+
+    this.config.plugins.sort((a, b) => (b.priority || 0) - (a.priority || 0))
+
+    this.initializePlugins()
+  }
+
+  /**
+   * Plugin Handler
+   */
+
+  private initializePlugins() {
+    for (const plugin of this.config.plugins) {
+      try {
+        if (plugin.onInit) {
+          plugin.onInit(this.config)
+        }
+
+        this.pluginStats.set(plugin.name, { calls: 0, errors: 0, totalTime: 0 })
+      } catch (error) {
+        this.handlePluginError(plugin.name, error as Error, {
+          pluginName: plugin.name,
+          input: '',
+          position: 0,
+          lineNumber: 0,
+          columnNumber: 0
+        })
+      }
     }
   }
+
+  private handlePluginError(pluginName: string, error: Error, context: PluginContext) {
+    const pluginError: PluginError = {
+      pluginName,
+      error,
+      context,
+      timestamp: new Date()
+    }
+
+    this.pluginErrors.push(pluginError)
+
+    const stats = this.pluginStats.get(pluginName)
+    if (stats) {
+      stats.errors++
+    }
+
+    const plugin = this.config.plugins.find((p) => p.name === pluginName)
+    if (plugin?.onError) {
+      try {
+        plugin.onError(error, context)
+      } catch (handlerError) {
+        console.error(`Plugin ${pluginName} error handler failed:`, handlerError)
+      }
+    }
+
+    switch (this.config.pluginErrorHandling) {
+      case 'throw':
+        throw new Error(`Plugin "${pluginName}" failed: ${error.message}`)
+      case 'warn':
+        console.warn(
+          `Plugin "${pluginName}" failed at position ${context.position}:`,
+          error.message
+        )
+        break
+      case 'ignore':
+        break
+    }
+  }
+
+  public processWithPlugin(
+    plugin: Plugin,
+    input: string,
+    position: number,
+    lineNumber: number,
+    columnNumber: number
+  ): Token | null {
+    const startTime = performance.now()
+    const stats = this.pluginStats.get(plugin.name)!
+    stats.calls++
+
+    try {
+      const result = plugin.process(input, position)
+
+      if (result && this.config.enablePluginTracing) {
+        result.source = plugin.name
+      }
+
+      const endTime = performance.now()
+      stats.totalTime += endTime - startTime
+
+      return result
+    } catch (error) {
+      const context: PluginContext = {
+        pluginName: plugin.name,
+        input,
+        position,
+        lineNumber,
+        columnNumber
+      }
+
+      this.handlePluginError(plugin.name, error as Error, context)
+      return null
+    }
+  }
+
+  public registerPlugin(plugin: Plugin): this {
+    if (this.config.plugins.some((p) => p.name === plugin.name)) {
+      throw new Error(`Plugin with name "${plugin.name}" is already registered`)
+    }
+
+    this.config.plugins.push(plugin)
+    this.config.plugins.sort((a, b) => (b.priority || 0) - (a.priority || 0))
+
+    try {
+      if (plugin.onInit) {
+        plugin.onInit(this.config)
+      }
+      this.pluginStats.set(plugin.name, { calls: 0, errors: 0, totalTime: 0 })
+    } catch (error) {
+      this.handlePluginError(plugin.name, error as Error, {
+        pluginName: plugin.name,
+        input: '',
+        position: 0,
+        lineNumber: 0,
+        columnNumber: 0
+      })
+    }
+
+    return this
+  }
+
+  public unregisterPlugin(pluginName: string): this {
+    const pluginIndex = this.config.plugins.findIndex((p) => p.name === pluginName)
+    if (pluginIndex === -1) {
+      throw new Error(`Plugin "${pluginName}" not found`)
+    }
+
+    const plugin = this.config.plugins[pluginIndex]
+
+    try {
+      if (plugin.onDestroy) {
+        plugin.onDestroy()
+      }
+    } catch (error) {
+      console.warn(`Plugin "${pluginName}" cleanup failed:`, error)
+    }
+
+    this.config.plugins.splice(pluginIndex, 1)
+    this.pluginStats.delete(pluginName)
+
+    return this
+  }
+
+  public getPluginStats(): Map<
+    string,
+    { calls: number; errors: number; totalTime: number; avgTime: number }
+  > {
+    const result = new Map()
+    for (const [name, stats] of this.pluginStats.entries()) {
+      result.set(name, {
+        ...stats,
+        avgTime: stats.calls > 0 ? stats.totalTime / stats.calls : 0
+      })
+    }
+    return result
+  }
+
+  public getPluginErrors(): PluginError[] {
+    return [...this.pluginErrors]
+  }
+
+  public clearPluginErrors(): void {
+    this.pluginErrors = []
+  }
+
+  /**
+   * Main parser
+   */
 
   private parseFromList(
     input: string,
@@ -109,26 +263,21 @@ export class Ngurai {
       const suffix = this.config.commentSuffixes[i]
 
       if (input.startsWith(prefix, position)) {
-        // For single-line comments (e.g., //)
         if (suffix === '') {
           return {
             type: 'comment',
             value: input.substring(position),
             position
           }
-        }
-        // For inline comments (e.g., /* */)
-        else {
+        } else {
           const endPos = input.indexOf(suffix, position + prefix.length)
           if (endPos >= 0) {
-            // Found closing suffix on same line
             return {
               type: 'comment',
               value: input.substring(position, endPos + suffix.length),
               position
             }
           } else {
-            // Suffix not found on this line - treat as line comment until end
             return {
               type: 'comment',
               value: input.substring(position),
@@ -143,18 +292,15 @@ export class Ngurai {
 
   private parseCustom(input: string, position: number): Token | null {
     for (const [type, patterns] of Object.entries(this.config.custom)) {
-      // First try string literal matches
       const stringPatterns = patterns.filter((p) => typeof p === 'string') as string[]
       const token = this.parseFromList(input, position, stringPatterns, type)
       if (token) return token
 
-      // Then try regex patterns
       const regexPatterns = patterns.filter((p) => p instanceof RegExp) as RegExp[]
       for (const pattern of regexPatterns) {
         const remaining = input.slice(position)
         const match = remaining.match(pattern)
         if (match && match.index === 0) {
-          // Match must be at the start
           return {
             type,
             value: match[0],
@@ -166,26 +312,22 @@ export class Ngurai {
     return null
   }
 
-  public registerPlugin(plugin: TokenizerPlugin) {
-    this.config.plugins.push(plugin)
-    return this
-  }
-
   public process(input: string): Token[][] {
     const lines: Token[][] = []
-    let globalPosition = 0 // Track position across entire input
+    let globalPosition = 0
+    let lineNumber = 0
 
     for (const line of input.split('\n')) {
-      let localPosition = 0 // Track position relative to the line
+      lineNumber++
+      let localPosition = 0
       let currentLine: Token[] = []
 
       while (localPosition < line.length) {
         const char = line[localPosition]
         let token: Token | null = null
 
-        // Process plugins
         for (const plugin of this.config.plugins) {
-          token = plugin.process(line, localPosition)
+          token = this.processWithPlugin(plugin, line, localPosition, lineNumber, localPosition + 1)
           if (token) {
             currentLine.push(token)
             localPosition += token.value.length
@@ -196,7 +338,6 @@ export class Ngurai {
         if (token) continue
 
         if (!this.config.customOnly) {
-          // Check for comments
           token = this.parseComment(line, localPosition)
           if (token) {
             currentLine.push(token)
@@ -206,7 +347,6 @@ export class Ngurai {
           }
         }
 
-        // Check for custom identifiers
         token = this.parseCustom(line, localPosition)
         if (token) {
           currentLine.push(token)
@@ -215,7 +355,6 @@ export class Ngurai {
           continue
         }
 
-        // Handle spaces - split into individual tokens
         if (!this.config.noSpace) {
           const spaceMatch = line.slice(localPosition).match(this.config.whitespaceRegex)
           if (spaceMatch) {
@@ -234,8 +373,7 @@ export class Ngurai {
         }
 
         if (!this.config.customOnly) {
-          // Check for punctuation
-          token = this.parseFromList(line, localPosition, this.config.punctuation, 'punctuation')
+          token = this.parseFromList(line, localPosition, this.config.punctuations, 'punctuation')
           if (token) {
             currentLine.push(token)
             localPosition += token.value.length
@@ -243,7 +381,6 @@ export class Ngurai {
             continue
           }
 
-          // Check for identifiers, keywords, and variables
           token = this.parseIdentifierOrKeyword(line, localPosition)
           if (token) {
             currentLine.push(token)
@@ -252,7 +389,6 @@ export class Ngurai {
             continue
           }
 
-          // Check for numbers
           token = this.parseNumber(line, localPosition)
           if (token) {
             currentLine.push(token)
@@ -261,7 +397,6 @@ export class Ngurai {
             continue
           }
 
-          // Check for strings
           token = this.parseString(line, localPosition)
           if (token) {
             currentLine.push(token)
@@ -284,6 +419,24 @@ export class Ngurai {
 
     return lines
   }
+
+  public destroy(): void {
+    for (const plugin of this.config.plugins) {
+      try {
+        if (plugin.onDestroy) {
+          plugin.onDestroy()
+        }
+      } catch (error) {
+        console.warn(`Plugin "${plugin.name}" cleanup failed:`, error)
+      }
+    }
+
+    this.config.plugins = []
+    this.pluginStats.clear()
+    this.pluginErrors = []
+  }
 }
 
+export * from './types'
+export { identifierPatterns } from './lib/identifierPatterns'
 export default Ngurai
