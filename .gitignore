@@ -1,2 +1,11 @@
-dist
-node_modules
+logs
+**/*.log
+npm-debug.log*
+**/node_modules
+**/dist
+**/build
+**/*.bak
+**/*.bak.*
+**/.temp
+**/*.temp.*
+**/.cache

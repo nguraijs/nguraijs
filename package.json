@@ -1,52 +1,25 @@
 {
-  "name": "nguraijs",
-  "version": "0.5.0",
-  "description": "Lightweight and customizable tokenizer.",
-  "author": "NOuSantx <nousantx@gmail.com>",
+  "name": "@nguraijs/workspace",
+  "private": true,
+  "version": "1.0.0",
+  "description": "As its name",
+  "author": "NguraiJS Team",
   "license": "MIT",
-  "homepage": "https://github.com/nousantx/nguraijs#readme",
-  "keywords": [
-    "library",
-    "javascript-library",
-    "tokenizer"
+  "workspaces": [
+    "packages/*"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nousantx/nguraijs.git"
+    "url": "git+https://github.com/nguraijs/nguraijs.git"
   },
   "bugs": {
-    "url": "https://github.com/nousantx/nguraijs/issues"
-  },
-  "files": [
-    "dist",
-    "package.json",
-    "README.md",
-    "LICENSE"
-  ],
-  "types": "./dist/index.d.ts",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.es.js",
-  "browser": "./dist/index.iife.js",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "require": "./dist/index.cjs",
-      "import": "./dist/index.es.js"
-    }
+    "url": "https://github.com/nguraijs/nguraijs/issues"
   },
   "scripts": {
-    "dev": "vite build --watch",
-    "build": "vite build",
-    "build:prod": "pnpm type-check && pnpm build && pnpm build:types",
-    "type-check": "tsc --noEmit",
-    "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "format": "prettier -w ."
   },
-  "devDependencies": {
-    "typescript": "^5.7.3",
-    "vite": "^6.2.4",
-    "vitest": "^3.1.4"
+  "dependencies": {
+    "prettier": "^3.5.3"
   },
-  "packageManager": "pnpm@10.4.0"
+  "packageManager": "pnpm@10.11.0"
 }
