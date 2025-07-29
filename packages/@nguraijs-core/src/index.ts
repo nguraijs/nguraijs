@@ -3,11 +3,8 @@ import { Config, Token, CompiledPattern } from './types'
 
 export class Ngurai {
   private config: Required<Config>
-  private keywordSet: Set<string> = new Set()
-  private keywordTrie: TrieNode = new TrieNode()
   private compiledCustomPatterns: Map<string, CompiledPattern> = new Map()
   private commentTrie: TrieNode = new TrieNode()
-
   private identifierStartLookup: boolean[] = new Array(128).fill(false)
   private identifierPartLookup: boolean[] = new Array(128).fill(false)
   private whitespaceLookup: boolean[] = new Array(128).fill(false)
@@ -20,12 +17,11 @@ export class Ngurai {
 
   constructor(config: Config = {}) {
     this.config = {
-      keywords: config.keywords || [],
       stringDelimiters: config.stringDelimiters || ['"', "'", '`'],
       identifierPattern: config.identifierPattern || 'standard',
       identifierParts: config.identifierParts || '0123456789_',
       whitespacePattern: config.whitespacePattern || ' \t',
-      comments: config.comments || [{ prefix: '//' }, { prefix: '/*', suffix: '*/' }],
+      comments: config.comments || [],
       tokens: config.tokens || {},
       noUnknownTokens: config.noUnknownTokens || false,
       noSpace: config.noSpace || false,
@@ -52,7 +48,6 @@ export class Ngurai {
 
   private initializeLookups(): void {
     this.buildCharacterLookups()
-    this.buildKeywordStructures()
     this.buildCommentTrie()
     this.compileCustomPatterns()
   }
@@ -164,15 +159,6 @@ export class Ngurai {
     setStandardLookups()
   }
 
-  private buildKeywordStructures(): void {
-    this.keywordSet = new Set(this.config.keywords)
-    
-
-    for (const keyword of this.config.keywords) {
-      this.keywordTrie.insert(keyword, { word: keyword, type: 'keyword' })
-    }
-  }
-
   private buildCommentTrie(): void {
     this.config.comments.forEach((comment, index) => {
       this.commentTrie.insert(comment.prefix, {
@@ -268,7 +254,7 @@ export class Ngurai {
 
     const value = input.substring(position, i)
     const token = this.getToken()
-    token.type = this.keywordSet.has(value) ? 'keyword' : 'identifier'
+    token.type = 'identifier'
     token.value = value
     token.position = position
     return token

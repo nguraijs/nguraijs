@@ -14,9 +14,9 @@ npm i @nguraijs/core
 import { Ngurai } from '@nguraijs/core'
 
 const urx = new Ngurai({
-  keywords: ['const', 'console'],
   comments: [{ prefix: '//' }, { prefix: '/*', suffix: '*/' }],
   tokens: {
+    keyword: ['const', 'console'],
     punctuation: ['=', ';', '.', '(', ')'],
     global: ['log']
   }

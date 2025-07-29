@@ -1,7 +1,6 @@
 import { TrieNode } from '../lib/TrieNode'
 
 export interface Config {
-  keywords?: string[]
   stringDelimiters?: string[]
   identifierPattern?:
     | 'standard'
